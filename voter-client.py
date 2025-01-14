@@ -117,7 +117,10 @@ class Voter:
                       'token': self.token  }
             )
             result = response.json()
-            print(f"Voted {vote_choice}: {result['message']}")
+            if (result['success'] == False):
+                print(result['message'])
+            else:
+                print(f"Voted {vote_choice}: {result['message']}")
             self.Voted = True
             return result['success']
             
@@ -125,20 +128,6 @@ class Voter:
             print(f"Voting error: {e}")
             return False
 
-# def main():
-#     # Create the 5 new voters for each center
-#     for center_id in range(1, 4):
-#         print(f"\nProcessing voters for Center {center_id}")
-#         for voter_num in range(11, 16):
-#             voter_id = f"voter_{center_id}_{voter_num}"
-#             voter = Voter(voter_id)
-            
-#             if voter.attempt_authentication(center_id):
-#                 voter.vote(center_id)
-#             print("-" * 50)  # Add separator between voters
-
-# if __name__ == "__main__":
-#     main()
 def main():
     # Create 5 voters total
     for i in range(1):
