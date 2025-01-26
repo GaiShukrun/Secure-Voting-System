@@ -1,36 +1,94 @@
-class GraphVerification:
-    def __init__(self):
-        # Original graph structure
-        self.original_graph = {
-            'nodes': [
-                {'id': 1, 'label': 'A', 'x': 100, 'y': 100},
-                {'id': 2, 'label': 'B', 'x': 200, 'y': 100},
-                {'id': 3, 'label': 'C', 'x': 300, 'y': 100},
-                {'id': 4, 'label': 'D', 'x': 100, 'y': 200},
-                {'id': 5, 'label': 'E', 'x': 200, 'y': 200},
-                {'id': 6, 'label': 'F', 'x': 300, 'y': 200},
-                {'id': 7, 'label': 'G', 'x': 100, 'y': 300},
-                {'id': 8, 'label': 'H', 'x': 200, 'y': 300},
-                {'id': 9, 'label': 'I', 'x': 300, 'y': 300},
-                {'id': 10, 'label': 'J', 'x': 400, 'y': 200}
-            ],
-            'edges': [
-                {'from': 1, 'to': 2},
-                {'from': 2, 'to': 3},
-                {'from': 1, 'to': 4},
-                {'from': 2, 'to': 5},
-                {'from': 3, 'to': 6},
-                {'from': 4, 'to': 7},
-                {'from': 5, 'to': 8},
-                {'from': 6, 'to': 9},
-                {'from': 4, 'to': 5},
-                {'from': 5, 'to': 6},
-                {'from': 7, 'to': 8},
-                {'from': 8, 'to': 9},
-                {'from': 6, 'to': 10},
-                {'from': 10, 'to': 3}
-            ]
+import random
+import math
+
+class DynamicGraphVerification:
+    def __init__(self, num_nodes=10, connectivity_ratio=0.4):
+        """
+        Generate a random graph with consistent structural properties
+        
+        :param num_nodes: Number of nodes in graph
+        :param connectivity_ratio: Proportion of possible edges to include
+        """
+        self.original_graph = self.generate_graph(num_nodes, connectivity_ratio)
+    
+    def generate_graph(self, num_nodes, connectivity_ratio):
+        """Generate a structurally consistent random graph"""
+        # Create nodes with coordinates in a circle
+        nodes = [
+            {
+                'id': i+1, 
+                'label': chr(65 + i),  # A, B, C...
+                'x': 200 + 120 * math.cos(-math.pi/2 + i*2*math.pi/num_nodes),
+                'y': 150 + 170 * math.sin(-math.pi/2 + i*2*math.pi/num_nodes)
+            } 
+            for i in range(num_nodes)
+        ]
+        
+        # Generate edges with controlled randomness
+        edges = []
+        possible_edges = [
+            {'from': i+1, 'to': j+1} 
+            for i in range(num_nodes) 
+            for j in range(num_nodes) 
+            if i != j
+        ]
+        
+        # Ensure graph is connected
+        for i in range(1, num_nodes):
+            edges.append({'from': i, 'to': i+1})
+        
+        # Add additional random edges based on connectivity ratio
+        additional_edges = random.sample(
+            [edge for edge in possible_edges if edge not in edges], 
+            k=int(len(possible_edges) * connectivity_ratio)
+        )
+        edges.extend(additional_edges)
+        
+        return {
+            'nodes': nodes,
+            'edges': edges
         }
+    
+    def verify_graph_properties(self):
+        """Verify graph maintains key structural properties"""
+        nodes = self.original_graph['nodes']
+        edges = self.original_graph['edges']
+        
+        # Check node count
+        assert len(nodes) > 5, "Graph must have sufficient nodes"
+        
+        # Check edge connectivity
+        node_connections = {node['id']: 0 for node in nodes}
+        for edge in edges:
+            node_connections[edge['from']] += 1
+            node_connections[edge['to']] += 1
+        
+        # Ensure most nodes have multiple connections
+        connected_nodes = sum(1 for connections in node_connections.values() if connections > 1)
+        assert connected_nodes > len(nodes) * 0.7, "Graph lacks sufficient connectivity"
+        
+        return True
+
+    # Usage in voting system
+    def create_voting_graphs(num_centers):
+        """Create unique graphs for each voting center"""
+        return {
+            center_id: DynamicGraphVerification() 
+            for center_id in range(1, num_centers + 1)
+        }
+
+    # Integration with existing verification
+    def verify_center_graphs(center_graphs):
+        """Verify graphs for all centers"""
+        verification_results = {}
+        for center_id, graph_verifier in center_graphs.items():
+            try:
+                verification_results[center_id] = graph_verifier.verify_graph_properties()
+            except AssertionError as e:
+                verification_results[center_id] = False
+                print(f"Center {center_id} graph verification failed: {e}")
+        
+        return verification_results
 
     def get_adjacent_nodes(self, node_id, edges):
         """Get adjacent nodes for a given node"""

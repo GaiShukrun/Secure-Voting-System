@@ -2,7 +2,9 @@ import requests
 import random
 import math
 from aes import AES
-
+from zkp_logic_stakeholder import GraphVerification
+import hashlib
+import json
 
 class Voter:
     def __init__(self, voter_id):
@@ -128,21 +130,127 @@ class Voter:
             print(f"Voting error: {e}")
             return False
 
+
+class VotingResultVerifier:
+    def __init__(self, centers, voters):
+        self.centers = centers
+        self.voters = voters
+
+    def compute_total_votes_from_centers(self):
+        """Aggregate votes from all centers"""
+        result = 0
+        total_votes = {'red': 0, 'blue': 0}
+        for center_id, center in self.centers.items():
+            votes = center.get('votes', [])
+            for vote in votes:
+                total_votes[vote] += 1
+            result += len(votes)
+        return result
+    
+
+    # def generate_verification_hash(self, total_votes):
+    #     """Create a cryptographic hash of voting results"""
+    #     # Convert votes to a deterministic, sorted JSON string
+    #     votes_json = json.dumps(total_votes, sort_keys=True)
+    #     return hashlib.sha256(votes_json.encode()).hexdigest()
+
+    # def cross_center_verification(self):
+    #     """Verify results across multiple centers"""
+    #     # Collect votes and hashes from each center
+    #     center_results = {}
+    #     for center_id, center in self.centers.items():
+    #         center_votes = center.get('votes', [])
+    #         center_hash = hashlib.sha256(json.dumps(center_votes, sort_keys=True).encode()).hexdigest()
+    #         center_results[center_id] = {
+    #             'votes': center_votes,
+    #             'hash': center_hash
+    #         }
+
+    #     # Compare hashes to detect inconsistencies
+    #     unique_hashes = set(result['hash'] for result in center_results.values())
+    #     if len(unique_hashes) > 1:
+    #         raise ValueError("Inconsistent votes detected across centers")
+
+    #     return center_results
+
+    def verify_result(self):
+        """Comprehensive verification process"""
+        try:        
+            # Compute total votes
+            total_votes_from_centers = self.compute_total_votes_from_centers()
+            total_votes_from_voters = len(self.voters)
+
+            if int(total_votes_from_centers) == int(total_votes_from_voters):
+                return {
+                    'total_votes': total_votes_from_centers,
+                    'verified': True
+                }
+            else:
+                return {
+                    'error': "Votes do not match",
+                    'verified': False
+                }
+        except Exception as e:
+            return {
+                'error': str(e),
+                'verified': False
+            }
+
+
+def get_centers():
+    centers = {}
+    for i in range(1, 4):
+        try:
+            response = requests.get(f'http://localhost:5000/center/{i}')
+            response.raise_for_status()  # Raise an error for HTTP issues
+            centers[i] = response.json()  # Add the clean JSON data to the dictionary
+        except requests.exceptions.HTTPError:
+            print(f"Center {i} not found.")
+        except requests.RequestException as e:
+            print(f"Error fetching center {i}: {e}")
+    return centers
+
+def get_voters():
+    try:
+        response = requests.get(f'http://localhost:5000/voters')
+        response.raise_for_status()  # Raise an error for HTTP issues
+        voters = response.json()
+    except requests.exceptions.HTTPError:
+        print(f"Voters not found.")
+    return voters
+
+
+
+
+
+
+
+
 def main():
     # Create 5 voters total
-    for i in range(1):
-        voter_id = f"new_voter_{i+1}"
-        voter = Voter(voter_id)
-        # Randomly choose a center (1, 2, or 3)
-        center_id = random.randint(1, 3)
-        print(f"\nVoter {voter_id} attempting to vote at Center {center_id}")
+    # for i in range(5):
+    #     print("-" * 50)
+    #     voter_id = f"new_voter_{i+1}"
+    #     voter = Voter(voter_id)
+    #     # Randomly choose a center (1, 2, or 3)
+    #     center_id = random.randint(1, 3)
+    #     print(f"\nVoter {voter_id} attempting to vote at Center {center_id}")
         
-        if voter.attempt_authentication(center_id):
-            voter.vote(center_id)
+    #     if voter.attempt_authentication(center_id):
+    #         voter.vote(center_id)
         
-        print("-" * 50)
-        if voter.attempt_authentication(2):
-            voter.vote(2)
+        
+        # if voter.attempt_authentication(2):
+        #     voter.vote(2)  
+        # 
+ 
+    centers = get_centers()
+    voters = get_voters()
+
+    verifier = VotingResultVerifier(centers,voters)
+    verification_result = verifier.verify_result()
+    print(verification_result)
+    print("-" * 50)
 
 if __name__ == "__main__":
     main()

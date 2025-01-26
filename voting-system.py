@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from zkp_logic import GraphVerification
 from aes import AES
 from datetime import datetime
+from bson.json_util import dumps
 
 app = Flask(__name__)
 
@@ -90,6 +91,12 @@ class VotingCenter:
             print(f"Error storing vote: {e}")
             return False, "Error processing vote"
 
+    def get_votes(self):
+        """Retrieve votes for this center"""
+        center = db.centers.find_one({"center_id": self.id})
+        return center.get('votes', [])
+
+
 # Create centers
 centers = {i: VotingCenter(i) for i in range(1, 4)}
 
@@ -122,6 +129,32 @@ def vote(center_id, voter_id):
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+    
+
+
+@app.route('/center/<i>', methods=['GET'])
+def get_center(i):
+    try:
+        i = int(i)
+        center = db.centers.find_one({"center_id": i}, {"_id": 0})
+        print(center)
+        if not center:
+            return {"error": f"Center {i} not found"}, 404
+        return center
+    except ValueError:
+        return {"error": "Invalid center ID"}, 400
+    
+@app.route('/voters', methods=['GET'])
+def get_voters():
+    try:
+        voters = list(db.tokens.find({}, {"_id": 0}))
+        if not voters:
+            print("No voters found")
+        return voters
+    except ValueError:
+        return {"error": "Invalid "}, 400
+
+
 
 if __name__ == '__main__':
     app.run(port=5000)
