@@ -1,37 +1,12 @@
 class GraphVerification:
-    def __init__(self):
-        # Original graph structure
-        self.original_graph = {
-            'nodes': [
-                {'id': 1, 'label': 'A', 'x': 100, 'y': 100},
-                {'id': 2, 'label': 'B', 'x': 200, 'y': 100},
-                {'id': 3, 'label': 'C', 'x': 300, 'y': 100},
-                {'id': 4, 'label': 'D', 'x': 100, 'y': 200},
-                {'id': 5, 'label': 'E', 'x': 200, 'y': 200},
-                {'id': 6, 'label': 'F', 'x': 300, 'y': 200},
-                {'id': 7, 'label': 'G', 'x': 100, 'y': 300},
-                {'id': 8, 'label': 'H', 'x': 200, 'y': 300},
-                {'id': 9, 'label': 'I', 'x': 300, 'y': 300},
-                {'id': 10, 'label': 'J', 'x': 400, 'y': 200}
-            ],
-            'edges': [
-                {'from': 1, 'to': 2},
-                {'from': 2, 'to': 3},
-                {'from': 1, 'to': 4},
-                {'from': 2, 'to': 5},
-                {'from': 3, 'to': 6},
-                {'from': 4, 'to': 7},
-                {'from': 5, 'to': 8},
-                {'from': 6, 'to': 9},
-                {'from': 4, 'to': 5},
-                {'from': 5, 'to': 6},
-                {'from': 7, 'to': 8},
-                {'from': 8, 'to': 9},
-                {'from': 6, 'to': 10},
-                {'from': 10, 'to': 3}
-            ]
-        }
 
+    def __init__(self):
+        self.original_graph = None
+
+
+    def zkp_verify(self,center_properties,voter_properties):
+        return center_properties['nodes'] == voter_properties['nodes']
+    
     def get_adjacent_nodes(self, node_id, edges):
         """Get adjacent nodes for a given node"""
         adjacent_nodes = set()

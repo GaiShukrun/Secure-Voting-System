@@ -233,6 +233,7 @@ class VotingGraphVerifier:
         self.voters = voters
         self.center_graph = None
         self.voter_graph = None
+        self.zkp_verify = GraphVerification()
 
     def build_center_graph(self):
         """Construct graph showing voter connections to voting centers"""
@@ -264,7 +265,7 @@ class VotingGraphVerifier:
         
         # Connect voters to their voting centers
         for voter in self.voters:
-            center_id = voter.get('voted_center')
+            center_id = voter.get('center_id')
             G.add_node(voter['voter_id'], type="voter")
             G.add_edge(voter['voter_id'], f"Center_{center_id}")
         
@@ -295,13 +296,18 @@ class VotingGraphVerifier:
         }
         
         # Verify key structural similarities
-        assert center_properties['nodes'] == voter_properties['nodes'], "Node count mismatch"
-        
-        return {
-            'verified': True,
-            'center_graph_properties': center_properties,
-            'voter_graph_properties': voter_properties
-        }
+        if self.zkp_verify.zkp_verify(center_properties, voter_properties):
+            return {
+                'verified': True,
+                'center_graph_properties': center_properties,
+                'voter_graph_properties': voter_properties
+            } 
+        else:
+            return {
+                'verified': False,
+                'center_graph_properties': center_properties,
+                'voter_graph_properties': voter_properties
+            }
 
 
     
@@ -311,12 +317,18 @@ class VotingGraphVerifier:
 
 def main():
     # Create 5 voters total
-    # for i in range(5):
+    # for i in range(40,45):
     #     print("-" * 50)
     #     voter_id = f"new_voter_{i+1}"
     #     voter = Voter(voter_id)
     #     # Randomly choose a center (1, 2, or 3)
-    #     center_id = random.randint(1, 3)
+    #     # center_id = random.randint(1, 3)
+    #     if (i < 15):
+    #         center_id = 1
+    #     elif (i < 30):
+    #         center_id = 2
+    #     else:
+    #         center_id = 3
     #     print(f"\nVoter {voter_id} attempting to vote at Center {center_id}")
         
     #     if voter.attempt_authentication(center_id):
@@ -335,8 +347,8 @@ def main():
     graph_verifier = VotingGraphVerifier(centers, voters)
     
     # Build graphs
-    center_graph = graph_verifier.build_center_graph()
-    stakeholder_graph = graph_verifier.build_voter_graph()
+    graph_verifier.build_center_graph()
+    graph_verifier.build_voter_graph()
     
     # Verify graph properties
     verification_result = graph_verifier.verify_graph_isomorphism()

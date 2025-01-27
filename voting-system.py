@@ -9,7 +9,7 @@ from bson.json_util import dumps
 app = Flask(__name__)
 
 # MongoDB connection
-client = MongoClient("mongodb+srv://GaiS:.gCa#6#zmQHC8nn@atlascluster.2oykxnx.mongodb.net/")
+client = MongoClient("mongodb+srv://vladik753:G8JOVgSLas5m48yp@myshop.uhaqamv.mongodb.net/")
 db = client['voting_system']
 
 
@@ -147,7 +147,7 @@ def get_center(i):
 @app.route('/voters', methods=['GET'])
 def get_voters():
     try:
-        voters = list(db.voters.find({}, {"_id": 0}))
+        voters = list(db.tokens.find({}, {"_id": 0}))
         if not voters:
             print("No voters found")
         return voters
