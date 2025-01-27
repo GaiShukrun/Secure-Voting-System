@@ -147,7 +147,7 @@ def get_center(i):
 @app.route('/voters', methods=['GET'])
 def get_voters():
     try:
-        voters = list(db.tokens.find({}, {"_id": 0}))
+        voters = list(db.voters.find({}, {"_id": 0}))
         if not voters:
             print("No voters found")
         return voters

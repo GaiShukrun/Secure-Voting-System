@@ -38,7 +38,7 @@ class Voter:
                 {'from': 7, 'to': 8},
                 {'from': 8, 'to': 9},
                 {'from': 6, 'to': 10},
-                {'from': 10, 'to': 3}
+                {'from': 10, 'to': 3},
             ]
         }
     def generate_token(self):
@@ -180,6 +180,8 @@ class VotingResultVerifier:
             total_votes_from_centers = self.compute_total_votes_from_centers()
             total_votes_from_voters = len(self.voters)
 
+            print("@@@@@@@@@@@@@:", total_votes_from_centers, "@@@@@@@@@@@@@:", total_votes_from_voters)
+
             if int(total_votes_from_centers) == int(total_votes_from_voters):
                 return {
                     'total_votes': total_votes_from_centers,
@@ -223,6 +225,87 @@ def get_voters():
 
 
 
+import networkx as nx
+
+class VotingGraphVerifier:
+    def __init__(self, centers, voters):
+        self.centers = centers
+        self.voters = voters
+        self.center_graph = None
+        self.voter_graph = None
+
+    def build_center_graph(self):
+        """Construct graph showing voter connections to voting centers"""
+        import networkx as nx
+        G = nx.Graph()
+
+        # Add center nodes
+        for center_id, center_data in self.centers.items():
+            G.add_node(f"Center_{center_id}", type="center")
+
+            # Add voter nodes for each vote
+            for i, vote in enumerate(center_data['votes']):
+                voter_id = f"voter_{center_id}_{i+1}"  # Unique voter ID
+                G.add_node(voter_id, type="voter", vote=vote)  # Add voter node with vote attribute
+                G.add_edge(voter_id, f"Center_{center_id}")  # Connect voter to center
+
+        # Store the graph in the class
+        self.center_graph = G
+        return G
+
+
+    def build_voter_graph(self):
+        """Construct graph representing voter relationships based on their votes."""
+        G = nx.Graph()
+        
+        # Add center nodes
+        for center_id in self.centers:
+            G.add_node(f"Center_{center_id}", type="center")
+        
+        # Connect voters to their voting centers
+        for voter in self.voters:
+            center_id = voter.get('voted_center')
+            G.add_node(voter['voter_id'], type="voter")
+            G.add_edge(voter['voter_id'], f"Center_{center_id}")
+        
+        self.voter_graph = G
+        return G
+
+    def verify_graph_isomorphism(self):
+        """Verify if center and voter graphs have equivalent structural properties"""
+        if not self.center_graph or not self.voter_graph:
+            raise ValueError("Graphs must be built first")
+        
+        # Compare key graph properties
+        center_properties = {
+            'nodes': len(self.center_graph.nodes()),
+            'edges': len(self.center_graph.edges()),
+            'centers': len([n for n, d in self.center_graph.nodes(data=True) if d['type'] == 'center']),
+            'voters_per_center': {
+                center: len([v for v in self.center_graph.nodes() if not v.startswith('Center') and 
+                             any(center in str(e) for e in self.center_graph.edges(v))])
+                for center in [n for n, d in self.center_graph.nodes(data=True) if d['type'] == 'center']
+            }
+        }
+        
+        voter_properties = {
+            'nodes': len(self.voter_graph.nodes()),
+            'edges': len(self.voter_graph.edges()),
+            'voters': len([n for n, d in self.voter_graph.nodes(data=True) if d['type'] == 'voter'])
+        }
+        
+        # Verify key structural similarities
+        assert center_properties['nodes'] == voter_properties['nodes'], "Node count mismatch"
+        
+        return {
+            'verified': True,
+            'center_graph_properties': center_properties,
+            'voter_graph_properties': voter_properties
+        }
+
+
+    
+
 
 
 
@@ -240,9 +323,6 @@ def main():
     #         voter.vote(center_id)
         
         
-        # if voter.attempt_authentication(2):
-        #     voter.vote(2)  
-        # 
  
     centers = get_centers()
     voters = get_voters()
@@ -252,5 +332,15 @@ def main():
     print(verification_result)
     print("-" * 50)
 
+    graph_verifier = VotingGraphVerifier(centers, voters)
+    
+    # Build graphs
+    center_graph = graph_verifier.build_center_graph()
+    stakeholder_graph = graph_verifier.build_voter_graph()
+    
+    # Verify graph properties
+    verification_result = graph_verifier.verify_graph_isomorphism()
+    print(verification_result)
+    
 if __name__ == "__main__":
     main()
