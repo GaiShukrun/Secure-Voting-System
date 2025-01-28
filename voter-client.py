@@ -156,7 +156,7 @@ class Voter:
             if (result['success'] == False):
                 print(result['message'])
             else:
-                print(f"Voted {vote_choice}: {result['message']}")
+                print(f"{result['message']}")
             self.Voted = True
             return result['success']
             
@@ -179,7 +179,7 @@ class VotingResultVerifier:
             for vote in votes:
                 total_votes[vote] += 1
             result += len(votes)
-        return result
+        return [result,total_votes]
     
 
     # def generate_verification_hash(self, total_votes):
@@ -211,15 +211,18 @@ class VotingResultVerifier:
         """Comprehensive verification process"""
         try:        
             # Compute total votes
-            total_votes_from_centers = self.compute_total_votes_from_centers()
+            total_votes_from_centers = (self.compute_total_votes_from_centers())[0]
             total_votes_from_voters = len(self.voters)
-
-            print("@@@@@@@@@@@@@:", total_votes_from_centers, "@@@@@@@@@@@@@:", total_votes_from_voters)
+            print('-' * 50)
+            print("Total votes counted in the centers:", total_votes_from_centers)
+            print("Total voters that actually voted:", total_votes_from_voters)
+            print('-' * 50)
 
             if int(total_votes_from_centers) == int(total_votes_from_voters):
                 return {
                     'total_votes': total_votes_from_centers,
-                    'verified': True
+                    'verified': True,
+                    'final_result': self.compute_total_votes_from_centers()[1]
                 }
             else:
                 return {
@@ -351,7 +354,7 @@ class VotingGraphVerifier:
 
 def main():
     # Create 5 voters total
-    for i in range(45,46):
+    for i in range(40,45):
         print("-" * 50)
         voter_id = f"new_voter_{i+1}"
         voter = Voter(voter_id)
@@ -376,7 +379,12 @@ def main():
 
     verifier = VotingResultVerifier(centers,voters)
     verification_result = verifier.verify_result()
-    print(verification_result)
+    if (verification_result.get('verified') == True):
+        print("Votes match! - calculated right!")
+        print("Voted red:", verification_result.get('final_result').get('red'))
+        print("Voted blue:", verification_result.get('final_result').get('blue'))
+    elif (verification_result.get('verified') == False):
+        print("Votes do not match! - something calculated wrong!")
     print("-" * 50)
 
     graph_verifier = VotingGraphVerifier(centers, voters)
@@ -386,8 +394,15 @@ def main():
     graph_verifier.build_voter_graph()
     
     # Verify graph properties
-    verification_result = graph_verifier.verify_graph_isomorphism()
-    print(verification_result)
+    stakeholder_verification_result = graph_verifier.verify_graph_isomorphism()
+    
+    if (stakeholder_verification_result.get('verified') == True):
+        print("Stakeholder verification via zkp succeed! - graphs are isomorphic!")
+    elif (stakeholder_verification_result.get('verified') == False):
+        print("Stakeholder verification via zkp failed! - graphs are not isomorphic!")
+        print("Center graph:", stakeholder_verification_result.get('center_graph_properties'))
+        print("Stakeholder graph:", stakeholder_verification_result.get('voter_graph_properties'))
+    print("-" * 50)
     
 if __name__ == "__main__":
     main()

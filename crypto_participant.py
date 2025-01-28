@@ -20,30 +20,30 @@ class CryptoParticipant:
         
         # Generate two prime numbers for RSA
         self.p = self._generate_prime(100, 500)
-        print(f"Generated first prime p: {self.p}")
-        print(f"Verifying p is prime: {self._is_prime(self.p)}")
+        # print(f"Generated first prime p: {self.p}")
+        # print(f"Verifying p is prime: {self._is_prime(self.p)}")
         
         self.q = self._generate_prime(100, 500)
-        print(f"Generated second prime q: {self.q}")
-        print(f"Verifying q is prime: {self._is_prime(self.q)}")
+        # print(f"Generated second prime q: {self.q}")
+        # print(f"Verifying q is prime: {self._is_prime(self.q)}")
         
         # Calculate RSA modulus n
         self.n = self.p * self.q
-        print(f"\nRSA modulus n = p * q: {self.n}")
+        # print(f"\nRSA modulus n = p * q: {self.n}")
         
         # Calculate Euler's totient function φ(n)
         self.phi = (self.p - 1) * (self.q - 1)
-        print(f"Euler's totient φ(n) = (p-1)(q-1): {self.phi}")
+        # print(f"Euler's totient φ(n) = (p-1)(q-1): {self.phi}")
         
         # Choose public exponent e
         self.e = self._choose_e()
-        print(f"\nChosen public exponent e: {self.e}")
-        print(f"Verified gcd(e,φ(n)) = {gcd(self.e, self.phi)} (must be 1)")
+        # print(f"\nChosen public exponent e: {self.e}")
+        # print(f"Verified gcd(e,φ(n)) = {gcd(self.e, self.phi)} (must be 1)")
         
         # Calculate private exponent d
         self.d = self._mod_inverse(self.e, self.phi)
-        print(f"\nCalculated private exponent d: {self.d}")
-        print(f"Verifying e*d ≡ 1 (mod φ(n)): {(self.e * self.d) % self.phi} (must be 1)")
+        # print(f"\nCalculated private exponent d: {self.d}")
+        # print(f"Verifying e*d ≡ 1 (mod φ(n)): {(self.e * self.d) % self.phi} (must be 1)")
         
         # Initialize DH parameters
         print("\nStep 2: Initializing DH Parameters")
@@ -74,25 +74,25 @@ class CryptoParticipant:
             attempts += 1
             candidate = random.randint(start, end)
             if self._is_prime(candidate):
-                print(f"Found prime after {attempts} attempts")
+                # print(f"Found prime after {attempts} attempts")
                 return candidate
 
     def _choose_e(self):
         """Choose public exponent e where 1 < e < φ(n) and gcd(e, φ(n)) = 1"""
-        print("\nSelecting public exponent e:")
-        print("Requirements: 1 < e < φ(n) and gcd(e,φ(n)) = 1")
+        # print("\nSelecting public exponent e:")
+        # print("Requirements: 1 < e < φ(n) and gcd(e,φ(n)) = 1")
         attempts = 0
         for e in range(3, self.phi):
             attempts += 1
             if gcd(e, self.phi) == 1:
-                print(f"Found valid e after testing {attempts} numbers")
+                # print(f"Found valid e after testing {attempts} numbers")
                 return e
         raise ValueError("No valid e found")
 
     def _mod_inverse(self, e, phi):
         """Calculate private exponent d using Extended Euclidean Algorithm"""
-        print("\nCalculating private exponent d using Extended Euclidean Algorithm")
-        print(f"Need to find d where e*d ≡ 1 (mod φ(n))")
+        # print("\nCalculating private exponent d using Extended Euclidean Algorithm")
+        # print(f"Need to find d where e*d ≡ 1 (mod φ(n))")
         
         def extended_gcd(a, b):
             if a == 0:
@@ -100,7 +100,7 @@ class CryptoParticipant:
             gcd, x1, y1 = extended_gcd(b % a, a)
             x = y1 - (b // a) * x1
             y = x1
-            print(f"GCD step: a={a}, b={b}, gcd={gcd}, x={x}, y={y}")
+            # print(f"GCD step: a={a}, b={b}, gcd={gcd}, x={x}, y={y}")
             return gcd, x, y
 
         _, d, _ = extended_gcd(e, phi)

@@ -98,7 +98,7 @@ class VotingCenter:
                 "center_id": self.id,
                 "timestamp": datetime.now()
             })
-            
+
             # Store the decrypted vote
             db.centers.update_one(
                 {"center_id": self.id},
@@ -173,7 +173,6 @@ def get_center(i):
     try:
         i = int(i)
         center = db.centers.find_one({"center_id": i}, {"_id": 0})
-        print(center)
         if not center:
             return {"error": f"Center {i} not found"}, 404
         return center
