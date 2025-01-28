@@ -5,6 +5,7 @@ from zkp_logic import GraphVerification
 from aes import AES
 from datetime import datetime
 from bson.json_util import dumps
+from crypto_participant import CryptoParticipant
 
 app = Flask(__name__)
 
@@ -22,6 +23,22 @@ class VotingCenter:
         self.authenticated_voters = set()
         self.load_existing_voters()
         self.aes = AES() 
+
+        self.crypto = CryptoParticipant(f"Center_{id}")
+        self.dh_base = 2  # Generator (g)
+        self.dh_modulus = self.crypto._generate_prime(1000, 10000)  # Prime (p)
+        self.crypto.set_dh_parameters(self.dh_base, self.dh_modulus)
+        self.aes_keys = {}  # Store AES keys per voter
+
+    
+    def handle_dh_exchange(self, voter_id, client_public):
+        """Process DH key exchange and derive AES key."""
+        self.crypto.generate_dh_private()
+        server_public = self.crypto.calculate_dh_public()
+        shared_secret = self.crypto.calculate_shared_secret(client_public)
+        aes_key = self.crypto.derive_aes_key(shared_secret)
+        self.aes_keys[voter_id] = aes_key
+        return server_public
     
     def load_existing_voters(self):
         # Load the 10 voters that already voted from MongoDB
@@ -55,17 +72,26 @@ class VotingCenter:
             print(f"Token verification error: {e}")
             return False
     
-    def accept_vote(self, voter_id, vote, token):
-        """Accept a vote from an authenticated voter"""
+    def accept_vote(self, voter_id, encrypted_vote_hex, token):
+        """Decrypt and store the vote."""
         if voter_id not in self.authenticated_voters:
             return False, "Voter not authenticated"
-            
-        # Check if token has been used
+        
         if not self.verify_token(token):
             return False, "Token already used"
-            
+        
+        aes_key = self.aes_keys.get(voter_id)
+        if not aes_key:
+            return False, "AES key not found"
+        
         try:
-            # Add token to tokens collection
+            encrypted_vote = bytes.fromhex(encrypted_vote_hex)
+            # Temporarily set AES key for decryption
+            original_key = self.crypto.aes_key
+            self.crypto.aes_key = aes_key
+            decrypted_vote = self.crypto.aes_decrypt(encrypted_vote)
+            self.crypto.aes_key = original_key  # Restore original key
+            
             db.tokens.insert_one({
                 "token": token,
                 "voter_id": voter_id,
@@ -73,28 +99,38 @@ class VotingCenter:
                 "timestamp": datetime.now()
             })
             
-            # Add vote to center's votes array
-            center = db.centers.find_one({"center_id": self.id})
-            next_index = len(center.get('votes', []))
-            
-            # Update votes array using positional operator
+            # Store the decrypted vote
             db.centers.update_one(
                 {"center_id": self.id},
-                {"$set": {
-                    f"votes.{next_index}": vote  # Just store the vote value directly
-                }}
+                {"$push": {"votes": decrypted_vote}}
             )
-            
             return True, "Vote accepted"
-            
         except Exception as e:
-            print(f"Error storing vote: {e}")
-            return False, "Error processing vote"
+            return False, f"Error: {str(e)}"
 
     def get_votes(self):
         """Retrieve votes for this center"""
         center = db.centers.find_one({"center_id": self.id})
         return center.get('votes', [])
+
+
+
+
+@app.route('/dh_params/<int:center_id>', methods=['GET'])
+def get_dh_params(center_id):
+    center = centers[center_id]
+    return jsonify({
+        'base': center.dh_base,
+        'modulus': center.dh_modulus
+    })
+
+@app.route('/dh_exchange/<int:center_id>/<voter_id>', methods=['POST'])
+def dh_exchange(center_id, voter_id):
+    data = request.json
+    client_public = data['public_key']
+    center = centers[center_id]
+    server_public = center.handle_dh_exchange(voter_id, client_public)
+    return jsonify({'server_public': server_public})
 
 
 # Create centers

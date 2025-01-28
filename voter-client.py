@@ -5,6 +5,8 @@ from aes import AES
 from zkp_logic_stakeholder import GraphVerification
 import hashlib
 import json
+from crypto_participant import CryptoParticipant
+
 
 class Voter:
     def __init__(self, voter_id):
@@ -15,6 +17,9 @@ class Voter:
         self.Voted = False 
         self.aes = AES()
         self.token = self.generate_token()
+
+        self.crypto = CryptoParticipant(f"Voter_{voter_id}")
+        self.aes_key = None
 
         # Create proof graph with different layout but same structure
         self.proof_graph = {
@@ -57,6 +62,30 @@ class Voter:
         print(f"Generated token for {self.id}: {token[:16]}...") # Print first 16 chars
         return token
     
+    
+    def perform_dh_key_exchange(self, center_id):
+        """Perform DH key exchange with the server."""
+        # Fetch DH parameters (g, p) from the server
+        response = requests.get(f'http://localhost:5000/dh_params/{center_id}')
+        dh_params = response.json()
+        self.crypto.set_dh_parameters(dh_params['base'], dh_params['modulus'])
+        
+        # Generate client's DH keys
+        self.crypto.generate_dh_private()
+        client_public = self.crypto.calculate_dh_public()
+        
+        # Exchange keys with the server
+        response = requests.post(
+            f'http://localhost:5000/dh_exchange/{center_id}/{self.id}',
+            json={'public_key': client_public}
+        )
+        server_public = response.json()['server_public']
+        
+        # Compute shared secret and derive AES key
+        shared_secret = self.crypto.calculate_shared_secret(server_public)
+        self.aes_key = self.crypto.derive_aes_key(shared_secret)
+
+
     def attempt_verify_node(self, center_id, node_id):
         """Try to verify a single node with the center"""
         if node_id in self.matched_nodes:  # Skip if already matched
@@ -113,9 +142,14 @@ class Voter:
         
         try:
             vote_choice = random.choice(['red', 'blue'])
+
+            # Encrypt the vote using AES
+            ciphertext = self.crypto.aes_encrypt(vote_choice)
+            ciphertext_hex = ciphertext.hex()
+
             response = requests.post(
                 f'http://localhost:5000/vote/{center_id}/{self.id}',
-                json={'vote': vote_choice,
+                json={'vote': ciphertext_hex,
                       'token': self.token  }
             )
             result = response.json()
@@ -317,22 +351,23 @@ class VotingGraphVerifier:
 
 def main():
     # Create 5 voters total
-    # for i in range(40,45):
-    #     print("-" * 50)
-    #     voter_id = f"new_voter_{i+1}"
-    #     voter = Voter(voter_id)
-    #     # Randomly choose a center (1, 2, or 3)
-    #     # center_id = random.randint(1, 3)
-    #     if (i < 15):
-    #         center_id = 1
-    #     elif (i < 30):
-    #         center_id = 2
-    #     else:
-    #         center_id = 3
-    #     print(f"\nVoter {voter_id} attempting to vote at Center {center_id}")
+    for i in range(45,46):
+        print("-" * 50)
+        voter_id = f"new_voter_{i+1}"
+        voter = Voter(voter_id)
+        # Randomly choose a center (1, 2, or 3)
+        # center_id = random.randint(1, 3)
+        if (i < 15):
+            center_id = 1
+        elif (i < 30):
+            center_id = 2
+        else:
+            center_id = 3
+        print(f"\nVoter {voter_id} attempting to vote at Center {center_id}")
         
-    #     if voter.attempt_authentication(center_id):
-    #         voter.vote(center_id)
+        if voter.attempt_authentication(center_id):
+            voter.perform_dh_key_exchange(center_id)
+            voter.vote(center_id)
         
         
  
